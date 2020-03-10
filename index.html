@@ -8,6 +8,7 @@
     <input type="text">
     <button>搜索</button>
     <div class="box"></div>
+    <button class="selectAll">爬取产品</button>
 </body>
 </html>
 
@@ -35,11 +36,24 @@
         // })
 
         $.ajax({
-            url: `http://127.0.0.1:5000/getData`,
+            url: `http://127.0.0.1:5000/getProductCategories`,
             type: 'GET',
             dataType: 'json',
             data:{
-                url:'https://geqian.en.alibaba.com/productlist.html'
+                url:'https://geqian.en.alibaba.com'
+            },
+            success: function (res) {
+                console.log(res)
+            }
+        })
+    }
+    document.querySelector('.selectAll').onclick = e => {
+        $.ajax({
+            url: `http://127.0.0.1:5000/getCommodityList`,
+            type: 'GET',
+            dataType: 'json',
+            data:{
+                url:'https://geqian.en.alibaba.com/productgrouplist-806625460/Smart_Camera.html'
             },
             success: function (res) {
                 console.log(res)
