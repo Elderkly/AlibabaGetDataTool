@@ -139,6 +139,30 @@ def get_getCommodityList_url(url,page):
         urlArray[3] = urlArray[3][:-2] + '-' + str(page)
     _url = '/'.join(urlArray)
     return _url
+#   查询关键词
+@app.route('/getKeyWord')
+def getKeyWord():
+    keyWordArray = []
+    url = request.args.get("url")
+    if url:
+        try:
+            soup = BeautifulSoup(get_html(url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
+            title = soup.find(name = 'title').string
+            name = soup.find(attrs = {'class': 'ma-title'}).string
+            nameArray = name.string.split(' ')
+            newName = ' '.join([s.capitalize() for s in nameArray])
+            replaceTitle = title.replace(newName,'')
+            replaceBuy = replaceTitle.replace(' - Buy ','')
+            replaceAlibaba = replaceBuy.replace(' Product on Alibaba.com','')
+            print(replaceAlibaba)
+            keyWordArray = replaceAlibaba.split(',')
+        except Exception as r:
+            print('getKeyWordError%s' %r)
+            return {'code':50001,'msg':'地址出错'}
+        else:
+            return {'code':0,'data':keyWordArray}
+    else:
+        return {'code':50001,'msg':'地址出错'}
 
 if __name__ == "__main__":
     app.run(

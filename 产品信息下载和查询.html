@@ -27,15 +27,35 @@
         .items-box{
             margin-top: 10px;
         }
+        .mainBox{
+            display: flex;
+        }
+        .mainBox > div:first-child{
+            min-width: 650px;
+            margin-right: 50px;
+        }
     </style>
 </head>
 <body>
-    <h3>产品信息下载和查询</h3>
-    <p class="tips">请严格按照https://xxxx.en.alibaba.com格式输入</p>
-    <div class="operation-box">
-        <input type="text" class="input_search">
-        <button class="btn_grouping">获取分组</button>
-        <div class="btnBox"></div>
+    <div class="mainBox">
+        <div>
+            <h3>产品信息下载和查询</h3>
+            <p class="tips">请严格按照https://xxxx.en.alibaba.com格式输入</p>
+            <div class="operation-box">
+                <input type="text" class="input_search">
+                <button class="btn_grouping">获取分组</button>
+                <div class="btnBox"></div>
+            </div>
+        </div>
+        <div>
+            <h3>查询关键词</h3>
+            <p class="tips">格式https://www.alibaba.com/product-detail/xxxx.html</p>
+            <div class="keyword-box">
+                <input type="text" class="input_keyword">
+                <button class="btn_keyword">查询关键词</button>
+                <div class="keyword_box"></div>
+            </div>
+        </div>
     </div>
     <div class="items-box">
         <div class="list-operation-box"></div>
@@ -47,7 +67,9 @@
     const btnBox = $('.btnBox')
     const input = $('.input_search')
     const btnGroping = $('.btn_grouping')
+    const btnKeyWord = $('.btn_keyword')
     const listOperationBox = $('.list-operation-box')
+    const keyWordBox = $('.keyword_box')
     let MainJson = []
 
     btnGroping.onclick = () => {
@@ -87,6 +109,35 @@
         }
     }
 
+    btnKeyWord.onclick = () => {
+        const {value} = $('.input_keyword')
+        console.log(value)
+        if (!!value) {
+            keyWordBox.innerHTML = '正在查询...'
+            ApiRequest(`${Host}/getKeyWord`,{
+                url: value
+            })
+                .then(res => {
+                    console.log(res)
+                    if (res.code === 0) {
+                        keyWordBox.innerHTML = ''
+                        res.data.map((e,index) => {
+                            if (index > 2) return
+                            const p = document.createElement('p')
+                            p.innerHTML = e
+                            keyWordBox.append(p)
+                        })
+                    } else {
+                        keyWordBox.innerHTML = res.msg
+                    }
+                })
+                .catch(e => {
+                    console.log(e)
+                    keyWordBox.innerHTML = '格式有误'
+                })
+        }
+    }
+
     function selectList() {
         const value = $('select').value
         if ($('.list-operation-box').innerHTML.indexOf('正在爬取') !== -1) {
@@ -115,7 +166,7 @@
     async function getMoreList(maxPage, url) {
         try{
             for (let i = 1; i <= maxPage; i++) {
-                listOperationBox.innerHTML = `共有${maxPage}页数据 预计耗时${resetTime(maxPage * 25)} 正在爬取第${i}页数据...`
+                listOperationBox.innerHTML = `共有${maxPage}页数据 预计耗时${resetTime(maxPage * 23)} 正在爬取第${i}页数据...`
                 const res = await ApiRequest(`${Host}/getCommodityList`,{page: i,maxPage: i,url: url})
                 if (res.code === 0) {
                     renderTable(i,res.data)
