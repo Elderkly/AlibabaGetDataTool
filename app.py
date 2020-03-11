@@ -133,6 +133,7 @@ def getList(url, page, maxPage, mainJson):
 def get_getCommodityList_url(url,page):
     urlArray = url.split('/')
     pageUrl = urlArray[3][-2:]
+    page = (0 if (page == 1) else page)
     if (pageUrl.find('-') == -1):
         urlArray[3] = urlArray[3] + '-' + str(page)
     else:

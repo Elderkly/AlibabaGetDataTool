@@ -123,9 +123,10 @@
                         keyWordBox.innerHTML = ''
                         res.data.map((e,index) => {
                             if (index > 2) return
-                            const p = document.createElement('p')
-                            p.innerHTML = e
-                            keyWordBox.append(p)
+                            const div = document.createElement('div')
+                            div.innerHTML = e
+                            div.style.border = '1px solid #999'
+                            keyWordBox.append(div)
                         })
                     } else {
                         keyWordBox.innerHTML = res.msg
