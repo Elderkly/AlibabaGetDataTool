@@ -1,4 +1,5 @@
 # coding=utf-8
+import time
 import requests
 from flask import request
 from flask import Flask
@@ -19,6 +20,115 @@ def get_html(url):
     html = response.text       #获取网页源码
     return html                #返回网页源码
 
+#   获取产品类别
+@app.route('/getProductCategories', methods=['GET','POST'])
+def getData():
+    url = request.args.get("url")
+    menu = []
+    if url:
+        try:
+            soup = BeautifulSoup(get_html(url + '/productlist.html'), 'lxml')   #初始化BeautifulSoup库,并设置解析器
+            for li in soup.find_all(attrs={"class": "next-menu ver group-menu"}):         #遍历父节点
+                    for a in li.find_all(name='a'):     #遍历子节点
+                        if a.string==None:
+                            pass
+                        else:
+                            menu.append({'text':a.string,'href':url + a['href']})
+        except:
+            return {'code':50001,'msg':'地址出错'}
+        else:
+            return {'code':0,'data':menu}
+    else:
+        return {'code':50001,'msg':'地址出错'}
+
+#   获取最大分页页数
+@app.route('/getMaxPage')
+def getMaxPage():
+    page = 1
+    maxPage = 1
+    url = request.args.get("url")
+    if url:
+        try:
+            _url = get_getCommodityList_url(url, page)
+            soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
+            #   爬取翻页按钮 写入总页数
+            for nextBtn in soup.find_all(attrs={"class": "next-pagination-pages"}):
+                _page = nextBtn.find_all(attrs={"class": ["next-btn next-btn-normal next-btn-medium next-pagination-item","next-btn next-btn-normal next-btn-medium next-pagination-item current"]})[-1].string
+                if _page !=None:
+                    maxPage = int(_page)
+                print('总页数')
+                print(_page)
+        except:
+            return {'code':50001,'msg':'地址出错'}
+        else:
+            return {'code':0,'data':{'page':maxPage}}
+    else:
+        return {'code':50001,'msg':'地址出错'}
+
+#   获取商品列表
+@app.route('/getCommodityList')
+def getCommodityList():
+    mainJson = []
+    page = int(request.args.get("page"))
+    maxPage = int(request.args.get("maxPage"))
+    url = request.args.get("url")
+    if url:
+        try:
+            _url = get_getCommodityList_url(url, page)
+            soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
+            getJson = getList(url, page, maxPage, mainJson)
+        except Exception as r:
+            print('未知错误 %s' %r)
+            return {'code':50001,'msg':'获取商品列表失败','data': mainJson}
+        else:
+            return {'code':0,'data':getJson}
+    else:
+        return {'code':50001,'msg':'地址出错'}
+
+#   递归爬取所有商品
+def getList(url, page, maxPage, mainJson):
+    if url:
+        startTIme = time.time()
+        _url = get_getCommodityList_url(url,page)
+        soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
+        #   爬取列表数据
+        forIndex = 0    #便利索引
+        box = soup.find(attrs={"class": "component-product-list"})                           #   父节点
+        listArray = box.find_all(attrs={"class": ["icbu-product-card vertical large product-item","icbu-product-card vertical large product-item last"]})  #   所有子节点
+        for item in listArray:
+           a = item.find(name = 'a')
+           span = item.find(attrs={"class": "title-con"})
+           if span.string != None:
+                keyWord = []
+                try:
+                    #   将原标题进行首字母大写处理 用于匹配详情页面title
+                    nameArray = span.string.split(' ')
+                    newName = ' '.join([s.capitalize() for s in nameArray])
+                    #   获取详情页面的title
+                    details = BeautifulSoup(get_html('https://geqian.en.alibaba.com'+a['href']), 'lxml')
+                    title = details.find(name = 'title').string
+                    #   删除无用字段
+                    replaceTitle = title.replace(newName,'')
+                    replaceBuy = replaceTitle.replace(' - Buy ','')
+                    replaceAlibaba = replaceBuy.replace(' Product on Alibaba.com','')
+                    #   获取关键词
+                    keyWord = replaceAlibaba.split(',')
+                except:
+                    keyWord = []
+                    print('获取关键词出错')
+                else:
+                    mainJson.append({'text':span.string, 'keyWord': keyWord})
+           forIndex += 1
+           if forIndex == len(listArray):               #   当前周期遍历完毕
+                print('第' + str(page) + '页爬取结束')
+                print('耗时'+str(time.time()-startTIme)+'秒')
+                if page != maxPage:                     #   如果不是最后一页则递归遍历 直到所有数据爬取完毕
+                    return getList(url, page + 1, maxPage, mainJson)
+                else:
+                    return mainJson
+    else:
+        return mainJson
+
 # 爬取商品时根据分页拼接url
 def get_getCommodityList_url(url,page):
     urlArray = url.split('/')
@@ -29,69 +139,6 @@ def get_getCommodityList_url(url,page):
         urlArray[3] = urlArray[3][:-2] + '-' + str(page)
     _url = '/'.join(urlArray)
     return _url
-
-#   获取产品类别
-@app.route('/getProductCategories', methods=['GET','POST'])
-def getData():
-    url = request.args.get("url")
-    menu = []
-    if url:
-        soup = BeautifulSoup(get_html(url + '/productlist.html'), 'lxml')   #初始化BeautifulSoup库,并设置解析器
-        for li in soup.find_all(attrs={"class": "next-menu ver group-menu"}):         #遍历父节点
-                for a in li.find_all(name='a'):     #遍历子节点
-                    if a.string==None:
-                        pass
-                    else:
-                        menu.append({'text':a.string,'href':url + a['href']})
-        return {'code':0,'msg':menu}
-    else:
-        return {'code':50001,'msg':'地址出错'}
-
-#   获取商品列表
-@app.route('/getCommodityList')
-def getCommodityList():
-    page = 1
-    maxPage = 1
-    mainJson = []
-    url = request.args.get("url")
-    if url:
-        _url = get_getCommodityList_url(url, page)
-        soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
-        #   爬取翻页按钮 写入总页数
-        for nextBtn in soup.find_all(attrs={"class": "next-pagination-pages"}):
-            _page = nextBtn.find_all(attrs={"class": "next-btn next-btn-normal next-btn-medium next-pagination-item"})[-1].string
-            if _page !=None:
-                maxPage = int(_page)
-            print('总页数')
-            print(_page)
-        getJson = getList(url, page, maxPage, mainJson)
-        return {'code':0,'msg':getJson}
-    else:
-        return {'code':50001,'msg':'地址出错'}
-
-#   递归爬取所有商品
-def getList(url, page, maxPage, mainJson):
-    if url:
-        _url = get_getCommodityList_url(url,page)
-        soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
-        #   爬取列表数据
-        forIndex = 0    #便利索引
-        box = soup.find(attrs={"class": "component-product-list"})                           #   父节点
-        listArray = box.find_all(attrs={"class": ["icbu-product-card vertical large product-item","icbu-product-card vertical large product-item last"]})  #   所有子节点
-        for item in listArray:
-           a = item.find(attrs={"class": "title-con"})
-           if a.string != None:
-                mainJson.append({'text':a.string})
-           forIndex += 1
-           if forIndex == len(listArray):               #   当前周期遍历完毕
-                print('第' + str(page) + '页循环结束')
-                print(len(mainJson))
-                if page != maxPage:                     #   如果不是最后一页则递归遍历 直到所有数据爬取完毕
-                    return getList(url, page + 1, maxPage, mainJson)
-                else:
-                    return mainJson
-    else:
-        return mainJson
 
 if __name__ == "__main__":
     app.run(

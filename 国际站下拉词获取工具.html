@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>国际站下拉词获取工具</title>
+    <style>
+        p{
+            margin:0
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h3>国际站下拉词获取工具</h3>
+        <input type="text" class="input_search">
+        <button class="btn_search">搜索</button>
+        <div class="box"></div>
+    </div>
+</body>
+</html>
+
+<script src="./jq.js"></script>
+
+<script>
+    document.querySelector('.btn_search').onclick = e => {
+        const value = document.querySelector('input').value
+        const box = document.querySelector('.box')
+        box.innerHTML = ''
+
+        $.ajax({
+            url: `https://connectkeyword.alibaba.com/lenoIframeJson.htm?iframe_delete=true&varname=intelSearchData&keyword=${value}&searchType=product_en&cateId=&cookieId=&buckettest=&version=2&locale=en_US`,
+            type: 'get',
+            dataType: 'jsonp',
+            success: function (res) {
+                console.log(res)
+                if (res && res.length > 0) {
+                    res.map(e => {
+                        const p = document.createElement('p')
+                        p.innerHTML = e.keywords
+                        box.append(p)
+                    })
+                }
+            }
+        })
+    }
+
+</script>

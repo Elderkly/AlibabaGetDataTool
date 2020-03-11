@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>产品信息下载和查询</title>
+    <style>
+        p{
+            margin:0
+        }
+        button{
+            margin: 0 10px
+        }
+        .tips{
+            font-size: 14px;
+            color: #999;
+        }
+        .input_search{
+            width: 200px
+        }
+        .operation-box{
+            margin-top: 10px;
+            display: flex;
+        }
+        .items-box{
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h3>产品信息下载和查询</h3>
+    <p class="tips">请严格按照https://xxxx.en.alibaba.com格式输入</p>
+    <div class="operation-box">
+        <input type="text" class="input_search">
+        <button class="btn_grouping">获取分组</button>
+        <div class="btnBox"></div>
+    </div>
+    <div class="items-box">
+        <div class="list-operation-box"></div>
+    </div>
+</body>
+</html>
+<script>
+    const Host = 'http://127.0.0.1:5000'
+    const btnBox = $('.btnBox')
+    const input = $('.input_search')
+    const btnGroping = $('.btn_grouping')
+    const listOperationBox = $('.list-operation-box')
+    let MainJson = []
+
+    btnGroping.onclick = () => {
+        let value = input.value
+        if (value.charAt(value.length-1) === '/') {
+            value = value.substr(0, value.length-1)
+        }
+        if (!!value) {
+            btnBox.innerHTML = '正在加载...'
+            ApiRequest(Host + '/getProductCategories',{
+                url: value
+            })
+                .then(res => {
+                    if (res.code === 0) {
+                        const select = document.createElement('select')
+                        res.data.map(e => {
+                            const option = document.createElement('option')
+                            option.value = e.href
+                            option.innerHTML = e.text
+                            select.append(option)
+                        })
+                        btnBox.innerHTML = null
+                        btnBox.append(select)
+                        const btn = document.createElement('button')
+                        btn.onclick = selectList
+                        btn.innerHTML = '爬取商品数据'
+                        btnBox.append(btn)
+                    } else {
+                        btnBox.innerHTML = res.msg
+                    }
+                    console.log(res)
+                })
+                .catch(e => {
+                    console.log(e)
+                    btnBox.innerHTML = '获取分组失败'
+                })
+        }
+    }
+
+    function selectList() {
+        const value = $('select').value
+        if ($('.list-operation-box').innerHTML.indexOf('正在爬取') !== -1) {
+            alert('正在爬取中 请勿重复操作\n如需中断爬取请刷新页面')
+            return
+        }
+        MainJson = []
+        listOperationBox.innerHTML = '正在获取总页数'
+        $('.list-table') ? $('.items-box').removeChild($('.list-table')) : null
+        ApiRequest(Host + '/getMaxPage',{
+            url: value
+        })
+            .then(res => {
+                if (res.code === 0) {
+                    getMoreList(res.data.page, value)
+                } else {
+                    listOperationBox.innerHTML = '获取页数失败'
+                }
+            })
+            .catch(e => {
+                console.log(e)
+                listOperationBox.innerHTML = '获取页数失败'
+            })
+    }
+
+    async function getMoreList(maxPage, url) {
+        try{
+            for (let i = 1; i <= maxPage; i++) {
+                listOperationBox.innerHTML = `共有${maxPage}页数据 预计耗时${resetTime(maxPage * 25)} 正在爬取第${i}页数据...`
+                const res = await ApiRequest(`${Host}/getCommodityList`,{page: i,maxPage: i,url: url})
+                if (res.code === 0) {
+                    renderTable(i,res.data)
+                    MainJson = [...MainJson,...res.data]
+                    i === maxPage ? listOperationBox.innerHTML = `数据爬取完毕 共${MainJson.length}条数据` : null
+                } else {
+                    listOperationBox.innerHTML = `爬取第${i}页数据失败`
+                    return
+                }
+            }
+        } catch (e) {
+            listOperationBox.innerHTML = '获取商品信息失败'
+            console.log(e)
+        }
+    }
+
+    function renderTable(page,data) {
+        const table = $('.list-table')
+        const tableTitle = $('.table-title')
+        let box = null
+        //  创建table
+        if (!!table) {
+            box = table
+        } else {
+            box = document.createElement('table')
+            box.className = 'list-table'
+            box.border = 1
+            $('.items-box').append(box)
+        }
+        //  创建表格头部
+        !tableTitle ? box.innerHTML += `
+            <tr class="table-title">
+                <th width="5%">序号</th>
+                <th width="50%">商品名称</th>
+                <th width="15%">关键词A</th>
+                <th width="15%">关键词B</th>
+                <th width="15%">关键词C</th>
+             </tr>
+        ` : null
+
+        data.map((e,index) => {
+            let keyWord = ''
+            e.keyWord.map((e,index) => index < 3 ? keyWord += ` <th>${e}</th>` : null)
+            box.innerHTML += `
+                <tr>
+                    <th>${(page - 1) * 16 + index + 1}</th>
+                    <th>${e.text}</th>
+                    ${keyWord}
+                  </tr>
+            `
+        })
+    }
+
+    function ApiRequest(url,params) {
+        const _params = Recombination(params)
+        const _url = url + _params
+        return new Promise((resolve,reject) => {
+            fetch(_url,{
+                method:'GET',
+            })
+                .then(res => res.json())
+                .then(res => {
+                    resolve(res)
+                })
+                .catch(e => {
+                    if (String(e) === 'TypeError: Failed to fetch') {
+                        console.log('未开启服务')
+                        btnBox.innerHTML = '连接中断 或未开启服务'
+                    } else {
+                        reject(e)
+                    }
+                })
+        })
+    }
+
+    /**
+     * @return {string}
+     */
+    function Recombination(obj) {
+        let str = ''
+        Object.keys(obj).map(e => str += str === '' ? `?${e}=${obj[e]}` : `&${e}=${obj[e]}`)
+        return str
+    }
+
+    function resetTime(time) {
+        if (time < 60) {
+            return time + '秒'
+        } else {
+            return (time / 60).toFixed(1) + '分钟'
+        }
+    }
+
+    function $(dom){
+        return document.querySelector(dom)
+    }
+</script>
