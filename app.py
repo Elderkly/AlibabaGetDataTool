@@ -1,4 +1,5 @@
 # coding=utf-8
+import sys
 import time
 import requests
 from flask import request
@@ -8,13 +9,14 @@ from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 # 爬取页面html结构
 def get_html(url):
     headers = {
         'User-Agent':'Mozilla/5.0(Macintosh; Intel Mac OS X 10_11_4)\
         AppleWebKit/537.36(KHTML, like Gecko) Chrome/52 .0.2743. 116 Safari/537.36'
-
     }     #模拟浏览器访问
     response = requests.get(url,headers = headers)       #请求访问网站
     html = response.text       #获取网页源码
@@ -102,20 +104,26 @@ def getList(url, page, maxPage, mainJson):
                 keyWord = []
                 try:
                     #   将原标题进行首字母大写处理 用于匹配详情页面title
-                    nameArray = span.string.split(' ')
-                    newName = ' '.join([s.capitalize() for s in nameArray])
+                    nameArray1 = span.string.split(' ')
+                    newName1 = ' '.join([s.capitalize() for s in nameArray1])
+                    nameArray = newName1.split(',')
+#                     for index,s in enumerate(nameArray):
+#                         nameArray[index] = s[:1].upper()+s[1:]
+                    newName = ','.join([s[:1].upper()+s[1:] for s in nameArray])
                     #   获取详情页面的title
                     details = BeautifulSoup(get_html('https://geqian.en.alibaba.com'+a['href']), 'lxml')
                     title = details.find(name = 'title').string
+#                     print('原名称'+span.string+'   新名称'+newName+'   title:'+title)
                     #   删除无用字段
                     replaceTitle = title.replace(newName,'')
                     replaceBuy = replaceTitle.replace(' - Buy ','')
                     replaceAlibaba = replaceBuy.replace(' Product on Alibaba.com','')
                     #   获取关键词
                     keyWord = replaceAlibaba.split(',')
-                except:
+#                     print(keyWord)
+                except Exception as r:
                     keyWord = []
-                    print('获取关键词出错')
+                    print('获取关键词出错 %s' %r)
                 else:
                     mainJson.append({'text':span.string, 'keyWord': keyWord})
            forIndex += 1
@@ -149,12 +157,14 @@ def getKeyWord():
         try:
             soup = BeautifulSoup(get_html(url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
             title = soup.find(name = 'title').string
+            print(title)
             name = soup.find(attrs = {'class': 'ma-title'}).string
             nameArray = name.string.split(' ')
             newName = ' '.join([s.capitalize() for s in nameArray])
+            print(newName)
             replaceTitle = title.replace(newName,'')
-            replaceBuy = replaceTitle.replace(' - Buy ','')
-            replaceAlibaba = replaceBuy.replace(' Product on Alibaba.com','')
+            replaceBuy = replaceTitle.replace(' - buy ','')
+            replaceAlibaba = replaceBuy.replace(' product on alibaba.com','')
             print(replaceAlibaba)
             keyWordArray = replaceAlibaba.split(',')
         except Exception as r:

@@ -34,6 +34,29 @@
             min-width: 650px;
             margin-right: 50px;
         }
+        .list-switch{
+            display: flex;
+        }
+        .list-switch>div{
+            width:80px;
+            height:30px;
+            border-radius: 4px;
+            background: #fff;
+            color: #000;
+            text-align: center;
+            line-height: 30px;
+            margin-right: 15px;
+            transition: all .3s;
+            cursor:pointer;
+        }
+        .list-switch>div:hover{
+            background: #21b3f7;
+            color: #fff;
+        }
+        .list-switch .list-switch-in{
+            background: #21b3f7;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +94,7 @@
     const listOperationBox = $('.list-operation-box')
     const keyWordBox = $('.keyword_box')
     let MainJson = []
+    let FrequencyJson = []
 
     btnGroping.onclick = () => {
         let value = input.value
@@ -146,8 +170,10 @@
             return
         }
         MainJson = []
+        FrequencyJson = []
         listOperationBox.innerHTML = '正在获取总页数'
         $('.list-table') ? $('.items-box').removeChild($('.list-table')) : null
+        $('.frequency-table') ? $('.items-box').removeChild($('.frequency-table')) : null
         ApiRequest(Host + '/getMaxPage',{
             url: value
         })
@@ -172,7 +198,16 @@
                 if (res.code === 0) {
                     renderTable(i,res.data)
                     MainJson = [...MainJson,...res.data]
-                    i === maxPage ? listOperationBox.innerHTML = `数据爬取完毕 共${MainJson.length}条数据` : null
+                    if (i === maxPage) {
+                        frequency()
+                        listOperationBox.innerHTML = `数据爬取完毕 共${MainJson.length}条数据`
+                        listOperationBox.innerHTML += `
+                            <div class="list-switch">
+                                <div class="list-switch-in" onclick="switchClick(this)">产品列表</div>
+                                <div onclick="switchClick(this)">词频分析</div>
+                            </div>
+                        `
+                    }
                 } else {
                     listOperationBox.innerHTML = `爬取第${i}页数据失败`
                     return
@@ -182,6 +217,49 @@
             listOperationBox.innerHTML = '获取商品信息失败'
             console.log(e)
         }
+    }
+
+    function switchClick(e) {
+        $('.list-switch-in') ? $('.list-switch-in').className = '' : null
+        e.className = 'list-switch-in'
+        const value = e.innerHTML
+        const box = value === '产品列表' ? $('.list-table') : $('.frequency-table')
+        const hiddenBox = value === '词频分析' ? $('.list-table') : $('.frequency-table')
+        box ? box.style.display = 'block' : null
+        hiddenBox ? hiddenBox.style.display = 'none' : null
+    }
+
+    function frequency() {
+        // var MainJson = [{"keyWord":["2018 Amazon Top Selling Phone Screen Protector","9h 4d Perfect Fit For Iphone X 8 7 6 Tempered Glass Screen Protector","For Samsung Galaxy S6 S7 S8 S9"],"text":"2018 Amazon Top Selling Products Mobile Accessories 9H 4D Perfect Fit For iPhone X 8 7 6 Tempered Glass Screen Protector for S9"},{"keyWord":["Professional Manufacturer 9h Tempered Glass Screen Protectors For Iphone X Accept Oem","Mobile Tempered Glass 0.33mm For Iphone X9h Explosion-proof Tempered Glass Screen Protector","Screen Protector Screen Protector For Iphone X 8 8plus","9h 0.33mm Tempered Glass Screen Protector"],"text":"Professional manufacturer 9H tempered glass screen protectors for iPhone X accept OEM ,mobile tempered glass 0.33mm for iPhone X"},{"keyWord":["Amazon Phone Cover For Iphone X 7 8 8plus","2018 Amazon Top Seller","Tempered Glass Screen Protector For Iphone"],"text":"2018 Amazon Top Seller For iPhone 7 8 8 Plus 2.5D 9H 0.33mm tempered glass screen protector"},{"keyWord":["Screen Protector Screen Protector For Iphone X/8/8plus","0.2mm Tempered Glass Screen Protector","Promotion Tempered Glass Screen Protector"],"text":"Promotion 0.20mmThickness Shockproof 3D Clear Tempered Glass screen protector for iPhone X / 8 / 8 plus screen guard"},{"keyWord":["Tempered Glass Screen Protector For Iphone X/8/8 Plus","9h Explosion-proof Tempered Glass Screen Protector","9h 0.33mm Anti Scratched Tempered Glass Screen Protector"],"text":"2018 amazon top seller screen protector for iPhone X 9H 0.33mm Anti scratch&Broken tempered glass screen protector for iPhone 8"}]
+        let [wordFrequency,keyWord] = [[],[]]
+
+        MainJson.map(e => e.keyWord.slice(0,3).map(x => keyWord.push({text:x, number: 0})))
+        console.log(keyWord)
+        for (let x in MainJson) {
+            const title = MainJson[x].text
+            const keyWordArray = MainJson[x].keyWord.slice(0,3)
+            title.split((' ')).map(e => {
+                const index = wordFrequency.findIndex(x => x.text === e.toLowerCase() || x.text === e || x.text === e.toUpperCase() || x.text === (e.charAt(0).toUpperCase() + e.slice(1)))
+                if (index !== -1) {
+                    wordFrequency[index].number += 1
+                } else {
+                    wordFrequency.push({text:e, number:1})
+                }
+            })
+            keyWordArray.map(e => {
+                const index = keyWord.findIndex(x => x.text === e)
+                index > -1 ? keyWord[index].number += 1 : null
+            })
+        }
+
+        wordFrequency = wordFrequency.sort((a,b) => b.number - a.number)
+        keyWord = keyWord.sort((a,b) => b.number - a.number)
+        FrequencyJson = {
+            wordFrequency,
+            keyWord
+        }
+        console.log(FrequencyJson)
+        renderFrequencyTable(FrequencyJson)
     }
 
     function renderTable(page,data) {
@@ -219,6 +297,46 @@
                   </tr>
             `
         })
+    }
+
+    function renderFrequencyTable(FrequencyJson) {
+        const table = $('.frequency-table')
+        const tableTitle = $('.frequency-table-title')
+        let box = null
+        if (!!table) {
+            box = table
+        } else {
+            box = document.createElement('table')
+            box.className = 'frequency-table'
+            box.border = 1
+            box.style.display = 'none'
+            $('.items-box').append(box)
+        }
+
+        //  创建表格头部
+        !tableTitle ? box.innerHTML += `
+            <tr class="table-title">
+                <th width="30%">词根</th>
+                <th width="10%">频率</th>
+                <th width="20%"></th>
+                <th width="30%">关键词</th>
+                <th width="10%">频率</th>
+             </tr>
+        ` : null
+
+        FrequencyJson.wordFrequency.map((e,index) => {
+            const keyWord  = FrequencyJson.keyWord[index] ? FrequencyJson.keyWord[index] : {text:'',number:''}
+            box.innerHTML += `
+                <tr>
+                    <th>${e.text}</th>
+                    <th>${e.number}</th>
+                    <th></th>
+                    <th>${keyWord.text}</th>
+                    <th>${keyWord.number}</th>
+                  </tr>
+            `
+        })
+
     }
 
     function ApiRequest(url,params) {
