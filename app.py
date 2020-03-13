@@ -1,4 +1,5 @@
 # coding=utf-8
+import re
 import sys
 import time
 import requests
@@ -103,24 +104,14 @@ def getList(url, page, maxPage, mainJson):
            if span.string != None:
                 keyWord = []
                 try:
-                    #   将原标题进行首字母大写处理 用于匹配详情页面title
-                    nameArray1 = span.string.split(' ')
-                    newName1 = ' '.join([s.capitalize() for s in nameArray1])
-                    nameArray = newName1.split(',')
-#                     for index,s in enumerate(nameArray):
-#                         nameArray[index] = s[:1].upper()+s[1:]
-                    newName = ','.join([s[:1].upper()+s[1:] for s in nameArray])
-                    #   获取详情页面的title
                     details = BeautifulSoup(get_html('https://geqian.en.alibaba.com'+a['href']), 'lxml')
                     title = details.find(name = 'title').string
-#                     print('原名称'+span.string+'   新名称'+newName+'   title:'+title)
-                    #   删除无用字段
-                    replaceTitle = title.replace(newName,'')
-                    replaceBuy = replaceTitle.replace(' - Buy ','')
-                    replaceAlibaba = replaceBuy.replace(' Product on Alibaba.com','')
-                    #   获取关键词
-                    keyWord = replaceAlibaba.split(',')
-#                     print(keyWord)
+                    print(title)
+                    name = re.sub(span.string,'',title,flags=re.IGNORECASE)
+                    name = name.replace(' - Buy ','')
+                    name = name.replace(' Product on Alibaba.com','')
+                    keyWord = name.split(',')
+                    print(name)
                 except Exception as r:
                     keyWord = []
                     print('获取关键词出错 %s' %r)
@@ -155,18 +146,14 @@ def getKeyWord():
     url = request.args.get("url")
     if url:
         try:
-            soup = BeautifulSoup(get_html(url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
-            title = soup.find(name = 'title').string
+            details = BeautifulSoup(get_html(url), 'lxml')
+            title = details.find(name = 'title').string
             print(title)
-            name = soup.find(attrs = {'class': 'ma-title'}).string
-            nameArray = name.string.split(' ')
-            newName = ' '.join([s.capitalize() for s in nameArray])
-            print(newName)
-            replaceTitle = title.replace(newName,'')
-            replaceBuy = replaceTitle.replace(' - buy ','')
-            replaceAlibaba = replaceBuy.replace(' product on alibaba.com','')
-            print(replaceAlibaba)
-            keyWordArray = replaceAlibaba.split(',')
+            name = re.sub(details.find(attrs = {'class': 'ma-title'}).string,'',title,flags=re.IGNORECASE)
+            name = name.replace(' - Buy ','')
+            name = name.replace(' Product on Alibaba.com','')
+            print(name)
+            keyWordArray = name.split(',')
         except Exception as r:
             print('getKeyWordError%s' %r)
             return {'code':50001,'msg':'地址出错'}

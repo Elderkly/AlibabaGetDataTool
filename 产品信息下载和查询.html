@@ -226,32 +226,6 @@
         XLSX.writeFile(wb,"产品信息"+new Date().getTime()+".xlsm");
     }
 
-    // 将一个sheet转成最终的excel文件的blob对象，然后利用URL.createObjectURL下载
-    function sheet2blob(sheet, sheetName) {
-        sheetName = sheetName || 'sheet1';
-        var workbook = {
-            SheetNames: [sheetName],
-            Sheets: {}
-        };
-        workbook.Sheets[sheetName] = sheet;
-        // 生成excel的配置项
-        var wopts = {
-            bookType: 'xlsx', // 要生成的文件类型
-            bookSST: false, // 是否生成Shared String Table，官方解释是，如果开启生成速度会下降，但在低版本IOS设备上有更好的兼容性
-            type: 'binary'
-        };
-        var wbout = XLSX.write(workbook, wopts);
-        var blob = new Blob([s2ab(wbout)], {type:"application/octet-stream"});
-        // 字符串转ArrayBuffer
-        function s2ab(s) {
-            var buf = new ArrayBuffer(s.length);
-            var view = new Uint8Array(buf);
-            for (var i=0; i!=s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
-            return buf;
-        }
-        return blob;
-    }
-
     function selectList() {
         const value = $('select').value
         if ($('.list-operation-box').innerHTML.indexOf('正在爬取') !== -1) {
@@ -327,7 +301,7 @@
             const title = MainJson[x].text
             const keyWordArray = MainJson[x].keyWord.slice(0,3)
             title.split((' ')).map(e => {
-                const index = wordFrequency.findIndex(x => x.text === e.toLowerCase() || x.text === e || x.text === e.toUpperCase() || x.text === (e.charAt(0).toUpperCase() + e.slice(1)))
+                const index = wordFrequency.findIndex(x => x.text === e || x.text.toLowerCase() === e.toLowerCase())
                 if (index !== -1) {
                     wordFrequency[index].number += 1
                 } else {
