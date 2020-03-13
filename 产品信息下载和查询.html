@@ -228,7 +228,7 @@
 
     function selectList() {
         const value = $('select').value
-        if ($('.list-operation-box').innerHTML.indexOf('正在爬取') !== -1) {
+        if (listOperationBox.innerHTML.indexOf('正在爬取') !== -1) {
             alert('正在爬取中 请勿重复操作\n如需中断爬取请刷新页面')
             return
         }
