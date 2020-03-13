@@ -85,6 +85,7 @@
     </div>
 </body>
 </html>
+<script src="./xlsx.core.min.js"></script>
 <script>
     const Host = 'http://127.0.0.1:5000'
     const btnBox = $('.btnBox')
@@ -124,7 +125,6 @@
                     } else {
                         btnBox.innerHTML = res.msg
                     }
-                    console.log(res)
                 })
                 .catch(e => {
                     console.log(e)
@@ -135,14 +135,12 @@
 
     btnKeyWord.onclick = () => {
         const {value} = $('.input_keyword')
-        console.log(value)
         if (!!value) {
             keyWordBox.innerHTML = '正在查询...'
             ApiRequest(`${Host}/getKeyWord`,{
                 url: value
             })
                 .then(res => {
-                    console.log(res)
                     if (res.code === 0) {
                         keyWordBox.innerHTML = ''
                         res.data.map((e,index) => {
@@ -161,6 +159,97 @@
                     keyWordBox.innerHTML = '格式有误'
                 })
         }
+    }
+
+    function exportExcel() {
+        const mainTable = []
+        const frequencyTable = []
+
+        const mainTableRows = []
+        const frequencyRows = []
+        MainJson.forEach(function (item) {
+            const row= {
+                A:item.text,
+                B:item.keyWord[0],
+                C:item.keyWord[1],
+                D:item.keyWord[2],
+            };
+            mainTableRows.push({hpx: 20,hpt: 20})
+            mainTable.push(row);
+        });
+
+        frequencyTable.push({
+            A:'词根',
+            B:'使用频率',
+            C:'',
+            D:'',
+            E:'关键词',
+            F:'使用频率'
+        })
+
+        FrequencyJson.wordFrequency.map((e,index) => {
+            const keyWord = FrequencyJson.keyWord[index] ? FrequencyJson.keyWord[index] : {}
+            const row = {
+                A: e.text,
+                B: e.number,
+                C:'',
+                D:'',
+                E: keyWord.text,
+                F: keyWord.number
+            };
+            frequencyRows.push({hpx: 20,hpt: 20})
+            frequencyTable.push(row);
+        })
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(mainTable, {header:["A","B","C","D"], skipHeader:true});
+        const fws = XLSX.utils.json_to_sheet(frequencyTable, {header:["A","B","C","D","E","F"], skipHeader:true});
+        ws['!cols']= [
+            {width: 80},
+            {width: 30},
+            {width: 30},
+            {width: 30}
+        ];
+        ws['!rows'] = mainTableRows
+        fws['!cols']= [
+            {width: 20},
+            {width: 20},
+            {width: 20},
+            {width: 20},
+            {width: 40},
+            {width: 20},
+        ];
+        fws['!rows'] = frequencyRows
+
+        XLSX.utils.book_append_sheet(wb, ws, "产品信息");
+        XLSX.utils.book_append_sheet(wb, fws, "词频分析");
+        XLSX.writeFile(wb,"产品信息"+new Date().getTime()+".xlsm");
+    }
+
+    // 将一个sheet转成最终的excel文件的blob对象，然后利用URL.createObjectURL下载
+    function sheet2blob(sheet, sheetName) {
+        sheetName = sheetName || 'sheet1';
+        var workbook = {
+            SheetNames: [sheetName],
+            Sheets: {}
+        };
+        workbook.Sheets[sheetName] = sheet;
+        // 生成excel的配置项
+        var wopts = {
+            bookType: 'xlsx', // 要生成的文件类型
+            bookSST: false, // 是否生成Shared String Table，官方解释是，如果开启生成速度会下降，但在低版本IOS设备上有更好的兼容性
+            type: 'binary'
+        };
+        var wbout = XLSX.write(workbook, wopts);
+        var blob = new Blob([s2ab(wbout)], {type:"application/octet-stream"});
+        // 字符串转ArrayBuffer
+        function s2ab(s) {
+            var buf = new ArrayBuffer(s.length);
+            var view = new Uint8Array(buf);
+            for (var i=0; i!=s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+            return buf;
+        }
+        return blob;
     }
 
     function selectList() {
@@ -201,6 +290,7 @@
                     if (i === maxPage) {
                         frequency()
                         listOperationBox.innerHTML = `数据爬取完毕 共${MainJson.length}条数据`
+                        listOperationBox.innerHTML += `<button class="exportExcel" onclick="exportExcel()">导出Excel</button>`
                         listOperationBox.innerHTML += `
                             <div class="list-switch">
                                 <div class="list-switch-in" onclick="switchClick(this)">产品列表</div>
@@ -230,11 +320,9 @@
     }
 
     function frequency() {
-        // var MainJson = [{"keyWord":["2018 Amazon Top Selling Phone Screen Protector","9h 4d Perfect Fit For Iphone X 8 7 6 Tempered Glass Screen Protector","For Samsung Galaxy S6 S7 S8 S9"],"text":"2018 Amazon Top Selling Products Mobile Accessories 9H 4D Perfect Fit For iPhone X 8 7 6 Tempered Glass Screen Protector for S9"},{"keyWord":["Professional Manufacturer 9h Tempered Glass Screen Protectors For Iphone X Accept Oem","Mobile Tempered Glass 0.33mm For Iphone X9h Explosion-proof Tempered Glass Screen Protector","Screen Protector Screen Protector For Iphone X 8 8plus","9h 0.33mm Tempered Glass Screen Protector"],"text":"Professional manufacturer 9H tempered glass screen protectors for iPhone X accept OEM ,mobile tempered glass 0.33mm for iPhone X"},{"keyWord":["Amazon Phone Cover For Iphone X 7 8 8plus","2018 Amazon Top Seller","Tempered Glass Screen Protector For Iphone"],"text":"2018 Amazon Top Seller For iPhone 7 8 8 Plus 2.5D 9H 0.33mm tempered glass screen protector"},{"keyWord":["Screen Protector Screen Protector For Iphone X/8/8plus","0.2mm Tempered Glass Screen Protector","Promotion Tempered Glass Screen Protector"],"text":"Promotion 0.20mmThickness Shockproof 3D Clear Tempered Glass screen protector for iPhone X / 8 / 8 plus screen guard"},{"keyWord":["Tempered Glass Screen Protector For Iphone X/8/8 Plus","9h Explosion-proof Tempered Glass Screen Protector","9h 0.33mm Anti Scratched Tempered Glass Screen Protector"],"text":"2018 amazon top seller screen protector for iPhone X 9H 0.33mm Anti scratch&Broken tempered glass screen protector for iPhone 8"}]
         let [wordFrequency,keyWord] = [[],[]]
 
         MainJson.map(e => e.keyWord.slice(0,3).map(x => keyWord.push({text:x, number: 0})))
-        console.log(keyWord)
         for (let x in MainJson) {
             const title = MainJson[x].text
             const keyWordArray = MainJson[x].keyWord.slice(0,3)
@@ -258,7 +346,6 @@
             wordFrequency,
             keyWord
         }
-        console.log(FrequencyJson)
         renderFrequencyTable(FrequencyJson)
     }
 
