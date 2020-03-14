@@ -3,15 +3,27 @@ import re
 import sys
 import time
 import requests
+import urllib2
+import threading
 from flask import request
 from flask import Flask
 from flask_cors import CORS
 from bs4 import BeautifulSoup
 
+mainJson = []
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 reload(sys)
 sys.setdefaultencoding('utf8')
+
+class MyThread(threading.Thread):
+  def __init__(self, func, args):
+    threading.Thread.__init__(self)
+    self.args = args
+    self.func = func
+ 
+  def run(self):
+    apply(self.func, self.args)
 
 # 爬取页面html结构
 def get_html(url):
@@ -78,55 +90,59 @@ def getCommodityList():
     if url:
         try:
             _url = get_getCommodityList_url(url, page)
-            soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
             getJson = getList(url, page, maxPage, mainJson)
         except Exception as r:
             print('未知错误 %s' %r)
             return {'code':50001,'msg':'获取商品列表失败','data': mainJson}
         else:
-            return {'code':0,'data':getJson}
+            return {'code':0,'data':mainJson}
     else:
         return {'code':50001,'msg':'地址出错'}
 
 #   递归爬取所有商品
 def getList(url, page, maxPage, mainJson):
     if url:
-        startTIme = time.time()
         _url = get_getCommodityList_url(url,page)
+        print(_url)
         soup = BeautifulSoup(get_html(_url), 'lxml')   #初始化BeautifulSoup库,并设置解析器
-        #   爬取列表数据
-        forIndex = 0    #便利索引
         box = soup.find(attrs={"class": "component-product-list"})                           #   父节点
         listArray = box.find_all(attrs={"class": ["icbu-product-card vertical large product-item","icbu-product-card vertical large product-item last"]})  #   所有子节点
-        for item in listArray:
-           a = item.find(name = 'a')
-           span = item.find(attrs={"class": "title-con"})
-           if span.string != None:
-                keyWord = []
-                try:
-                    details = BeautifulSoup(get_html('https://geqian.en.alibaba.com'+a['href']), 'lxml')
-                    title = details.find(name = 'title').string
-                    print(title)
-                    name = re.sub(span.string,'',title,flags=re.IGNORECASE)
-                    name = name.replace(' - Buy ','')
-                    name = name.replace(' Product on Alibaba.com','')
-                    keyWord = name.split(',')
-                    print(name)
-                except Exception as r:
-                    keyWord = []
-                    print('获取关键词出错 %s' %r)
-                else:
-                    mainJson.append({'text':span.string, 'keyWord': keyWord})
-           forIndex += 1
-           if forIndex == len(listArray):               #   当前周期遍历完毕
-                print('第' + str(page) + '页爬取结束')
-                print('耗时'+str(time.time()-startTIme)+'秒')
-                if page != maxPage:                     #   如果不是最后一页则递归遍历 直到所有数据爬取完毕
-                    return getList(url, page + 1, maxPage, mainJson)
-                else:
-                    return mainJson
+         # 多线程
+        t_start = time.time()
+        threadList = [MyThread(get_deitails_keyword, (item, url, page, maxPage, mainJson, index, len(listArray))) for index,item in enumerate(listArray)]
+        for t in threadList:
+            t.setDaemon(True)
+            t.start()
+        for i in threadList:
+            i.join()
+        print('总耗时%s'%(time.time()-t_start))
+        return mainJson
     else:
         return mainJson
+
+def get_deitails_keyword(item, url, page, maxPage, mainJson, index, length):
+    a = item.find(name = 'a')
+    span = item.find(attrs={"class": "title-con"})
+    if span.string != None:
+        keyWord = []
+        try:
+            details = BeautifulSoup(get_html('https://geqian.en.alibaba.com'+a['href']), 'lxml')
+            title = details.find(name = 'title').string
+            name = re.sub(span.string,'',title,flags=re.IGNORECASE)
+            name = name.replace(' - Buy ','')
+            name = name.replace(' Product on Alibaba.com','')
+            keyWord = name.split(',')
+        except Exception as r:
+            keyWord = []
+            print('获取关键词出错 %s' %r)
+        else:
+            mainJson.append({'text':span.string, 'keyWord': keyWord})
+    if index == length:               #   当前周期遍历完毕
+        print('第' + str(page) + '页爬取结束')
+        if page != maxPage:                     #   如果不是最后一页则递归遍历 直到所有数据爬取完毕
+            return getList(url, page + 1, maxPage, mainJson)
+        else:
+            return mainJson
 
 # 爬取商品时根据分页拼接url
 def get_getCommodityList_url(url,page):
