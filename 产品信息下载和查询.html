@@ -85,7 +85,7 @@
     </div>
 </body>
 </html>
-<script src="./xlsx.core.min.js"></script>
+<script src="./js/xlsx.core.min.js"></script>
 <script>
     const Host = 'http://127.0.0.1:5000'
     const btnBox = $('.btnBox')
@@ -256,7 +256,7 @@
     async function getMoreList(maxPage, url) {
         try{
             for (let i = 1; i <= maxPage; i++) {
-                listOperationBox.innerHTML = `共有${maxPage}页数据 预计耗时${resetTime(maxPage * 23)} 正在爬取第${i}页数据...`
+                listOperationBox.innerHTML = `共有${maxPage}页数据 预计耗时${resetTime(maxPage * 4)} 正在爬取第${i}页数据...`
                 const res = await ApiRequest(`${Host}/getCommodityList`,{page: i,maxPage: i,url: url})
                 if (res.code === 0) {
                     renderTable(i,res.data)

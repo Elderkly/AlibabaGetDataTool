@@ -1,0 +1,5 @@
+1.确保安装了python2环境
+2.安装pip:sudo easy_install pip
+3.安装依赖:pip install requests flask flask_cors BeautifulSoup4 lxml
+4.运行根目录下的"启动服务.app"或在命令行运行"python app.py"
+5.开始使用
